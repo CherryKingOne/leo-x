@@ -72,10 +72,11 @@
 |------|------|------|------|
 | text | string | 是 | 待合成文本 |
 | engine | string | 是 | 引擎名（cosyvoice / fishspeech / ...） |
-| voice | string | 否 | 说话人；可为预置音色名，或已注册的自定义声音名（通过 `/api/v1/tts/voices` 注册） |
+| voice_id | string | 否 | 已注册的自定义声音 id（通过 `/api/v1/tts/voices` 注册返回的 `voice_id`），用于复刻 |
+| voice | string | 否 | 说话人；可为预置音色名 |
 | format | string | 否 | 输出格式，默认 `wav` |
 | speed | float | 否 | 语速 |
-| reference_audio_url | string | 否 | 公网 URL，用于音色克隆（与 voice 二选一，优先级高于 voice） |
+| reference_audio_url | string | 否 | 公网 URL，用于即时音色克隆（与 voice_id 二选一，优先级高于 voice_id） |
 
 **Response**: `application/octet-stream`，音频二进制流。
 
@@ -85,34 +86,54 @@
 ```
 text: "Hello world"
 engine: "cosyvoice"
-voice: "alice"                  # 可为预置音色，或已注册的自定义声音名
+voice_id: "a1b2c3d4e5f67890"        # 已注册的自定义声音 id，用于复刻
+voice: "alice"                       # 可为预置音色名
 format: "mp3"
 speed: 1.0
-reference_audio: <file>          # 音频文件，用于音色克隆
+reference_audio: <file>              # 音频文件，用于即时音色克隆
 ```
 
 **Response**: `application/octet-stream`，音频二进制流。
 
 ### `POST /api/v1/tts/voices` — 注册自定义声音（音色复刻）
 
+上传参考音频，注册为具名声音，返回 `voice_id`。**创建一次即可，后续复刻直接用 `voice_id`，无需重复上传。**
+
 **Request** (`multipart/form-data`):
 ```
-name: "my_voice"             # 自定义声音名，必填
-engine: "cosyvoice"          # 引擎名，必填
-description: "My custom voice"  # 可选描述
-reference_audio: <file>      # 用于音色复刻的音频文件，必填
+name: "my_voice"                     # 自定义声音名，必填
+engine: "cosyvoice"                  # 引擎名，必填
+description: "My custom voice"       # 可选描述
+reference_audio: <file>              # 用于音色复刻的音频文件，必填
+expire_days: 30                      # 复刻有效期，可选：3 / 7 / 15 / 30 / 90 / 365 / 0（永久），默认 30
 ```
 
 **Response** (`application/json`):
 ```json
 {
+  "voice_id": "a1b2c3d4e5f67890",
   "name": "my_voice",
   "engine": "cosyvoice",
   "description": "My custom voice",
-  "audio_path": "/workspace/app/models/tts/voices/my_voice/ref.wav",
-  "created_at": "2026-10-29T07:15:00Z"
+  "audio_path": "/workspace/app/models/voices/a1b2c3d4e5f67890/ref.wav",
+  "expire_days": 30,
+  "expires_at": "2026-11-28T07:19:21Z",
+  "created_at": "2026-10-29T07:19:21Z"
 }
 ```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| voice_id | string | 声音唯一标识（UUID 转哈希值），后续复刻用此 id |
+| name | string | 自定义声音名 |
+| engine | string | 引擎名 |
+| description | string | 描述 |
+| audio_path | string | 参考音频本地路径 |
+| expire_days | int | 有效期（天），0 表示永久 |
+| expires_at | string | 到期时间（ISO 8601），永久则为 null |
+| created_at | string | 创建时间（ISO 8601） |
+
+**到期自动删除**：非永久声音在 `expires_at` 后自动删除，含音频文件与注册记录。
 
 ### `GET /api/v1/tts/voices` — 列出自定义声音
 
@@ -121,19 +142,22 @@ reference_audio: <file>      # 用于音色复刻的音频文件，必填
 {
   "voices": [
     {
+      "voice_id": "a1b2c3d4e5f67890",
       "name": "my_voice",
       "engine": "cosyvoice",
       "description": "My custom voice",
-      "audio_path": "/workspace/app/models/tts/voices/my_voice/ref.wav",
-      "created_at": "2026-10-29T07:15:00Z"
+      "audio_path": "/workspace/app/models/voices/a1b2c3d4e5f67890/ref.wav",
+      "expire_days": 30,
+      "expires_at": "2026-11-28T07:19:21Z",
+      "created_at": "2026-10-29T07:19:21Z"
     }
   ]
 }
 ```
 
-### `DELETE /api/v1/tts/voices/{name}` — 删除自定义声音
+### `DELETE /api/v1/tts/voices/{voice_id}` — 删除自定义声音
 
-**Response**: `204 No Content`
+按 `voice_id` 删除。**Response**: `204 No Content`
 
 ### `GET /api/v1/tts/engines` — 列出可用引擎
 
@@ -207,11 +231,13 @@ reference_audio: <file>      # 用于音色复刻的音频文件，必填
 自定义声音（音色复刻）是自定义接口的专属能力，OpenAI 兼容接口不支持。
 
 **流程**：
-1. 上传参考音频 → `POST /api/v1/tts/voices` 注册为具名声音
-2. 后续合成时，`voice` 字段传入该声音名即可复刻
+1. 上传参考音频 → `POST /api/v1/tts/voices` 注册为具名声音，返回 `voice_id`
+2. 后续合成时，传入 `voice_id` 即可复刻该声音（只需创建一次，后续直接用 id）
 3. 也可在单次合成时直接传 `reference_audio` / `reference_audio_url`，无需预先注册
 
 **三种使用方式**（优先级从高到低）：
 1. `reference_audio`（上传文件）或 `reference_audio_url`（公网 URL）— 即时克隆，不注册
-2. `voice` = 已注册的自定义声音名 — 使用已复刻的声音
-3. `voice` = 引擎预置音色名 — 使用预置声音
+2. `voice_id`（已注册的自定义声音 id）— 使用已复刻的声音，创建一次后复用
+3. `voice`（引擎预置音色名）— 使用预置声音
+
+**有效期**：注册时指定 `expire_days`（3 / 7 / 15 / 30 / 90 / 365 / 0 永久），非永久声音到期自动删除。
