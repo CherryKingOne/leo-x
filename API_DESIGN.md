@@ -72,10 +72,10 @@
 |------|------|------|------|
 | text | string | 是 | 待合成文本 |
 | engine | string | 是 | 引擎名（cosyvoice / fishspeech / ...） |
-| voice | string | 否 | 说话人 |
+| voice | string | 否 | 说话人；可为预置音色名，或已注册的自定义声音名（通过 `/api/v1/tts/voices` 注册） |
 | format | string | 否 | 输出格式，默认 `wav` |
 | speed | float | 否 | 语速 |
-| reference_audio_url | string | 否 | 公网 URL，用于音色克隆 |
+| reference_audio_url | string | 否 | 公网 URL，用于音色克隆（与 voice 二选一，优先级高于 voice） |
 
 **Response**: `application/octet-stream`，音频二进制流。
 
@@ -85,13 +85,55 @@
 ```
 text: "Hello world"
 engine: "cosyvoice"
-voice: "alice"
+voice: "alice"                  # 可为预置音色，或已注册的自定义声音名
 format: "mp3"
 speed: 1.0
-reference_audio: <file>          # 音频文件
+reference_audio: <file>          # 音频文件，用于音色克隆
 ```
 
 **Response**: `application/octet-stream`，音频二进制流。
+
+### `POST /api/v1/tts/voices` — 注册自定义声音（音色复刻）
+
+**Request** (`multipart/form-data`):
+```
+name: "my_voice"             # 自定义声音名，必填
+engine: "cosyvoice"          # 引擎名，必填
+description: "My custom voice"  # 可选描述
+reference_audio: <file>      # 用于音色复刻的音频文件，必填
+```
+
+**Response** (`application/json`):
+```json
+{
+  "name": "my_voice",
+  "engine": "cosyvoice",
+  "description": "My custom voice",
+  "audio_path": "/workspace/app/models/tts/voices/my_voice/ref.wav",
+  "created_at": "2026-10-29T07:15:00Z"
+}
+```
+
+### `GET /api/v1/tts/voices` — 列出自定义声音
+
+**Response** (`application/json`):
+```json
+{
+  "voices": [
+    {
+      "name": "my_voice",
+      "engine": "cosyvoice",
+      "description": "My custom voice",
+      "audio_path": "/workspace/app/models/tts/voices/my_voice/ref.wav",
+      "created_at": "2026-10-29T07:15:00Z"
+    }
+  ]
+}
+```
+
+### `DELETE /api/v1/tts/voices/{name}` — 删除自定义声音
+
+**Response**: `204 No Content`
 
 ### `GET /api/v1/tts/engines` — 列出可用引擎
 
@@ -152,8 +194,24 @@ reference_audio: <file>          # 音频文件
 | 能力 | OpenAI 兼容 | 自定义 |
 |------|------------|--------|
 | 文本合成 | `/v1/audio/speech` | `/api/v1/tts/synthesize` |
+| 预置音色 | `voice` 字段 | `voice` 字段 |
 | 文件上传音色 | ❌ 不支持 | `/api/v1/tts/synthesize-upload` |
 | URL 克隆音色 | ❌ 不支持 | `/api/v1/tts/synthesize` (+ `reference_audio_url`) |
+| **自定义声音注册/复刻** | ❌ 不支持 | `/api/v1/tts/voices`（注册、列表、删除） |
 | 多引擎切换 | 仅 model 字段 | `engine` 字段显式指定 |
 | 模型管理 | `/v1/models`（只读） | `/api/v1/tts/models` + 下载/清理 |
 | 引擎列表 | ❌ | `/api/v1/tts/engines` |
+
+## 四、音色复刻能力说明
+
+自定义声音（音色复刻）是自定义接口的专属能力，OpenAI 兼容接口不支持。
+
+**流程**：
+1. 上传参考音频 → `POST /api/v1/tts/voices` 注册为具名声音
+2. 后续合成时，`voice` 字段传入该声音名即可复刻
+3. 也可在单次合成时直接传 `reference_audio` / `reference_audio_url`，无需预先注册
+
+**三种使用方式**（优先级从高到低）：
+1. `reference_audio`（上传文件）或 `reference_audio_url`（公网 URL）— 即时克隆，不注册
+2. `voice` = 已注册的自定义声音名 — 使用已复刻的声音
+3. `voice` = 引擎预置音色名 — 使用预置声音

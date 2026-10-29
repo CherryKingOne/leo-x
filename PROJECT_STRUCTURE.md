@@ -12,7 +12,8 @@ workspace/app/
 ├── PROJECT_STRUCTURE.md        # 本文档
 ├── API_DESIGN.md               # 接口协议设计
 ├── models/                     # 模型本地存放根目录（不进 git）
-│   └── tts/                    # TTS 专用模型目录（用户指定）
+│   ├── tts/                    # TTS 专用模型目录（用户指定）
+│   └── voices/                 # 自定义声音（音色复刻）目录
 ├── src/app/
 │   ├── __init__.py
 │   ├── cli.py                  # CLI 入口（typer）
@@ -21,7 +22,8 @@ workspace/app/
 │   │   ├── __init__.py
 │   │   ├── app.py              # FastAPI 应用入口，挂载路由
 │   │   ├── openai_compat.py    # OpenAI 兼容接口 (/v1/audio/speech, /v1/models)
-│   │   ├── custom_api.py       # 自定义接口 (/api/v1/tts/*)
+│   │   ├── custom_api.py       # 自定义接口 (/api/v1/tts/synthesize, models, engines)
+│   │   ├── voices.py           # 自定义声音注册/复刻 (/api/v1/tts/voices)
 │   │   └── schemas.py          # Pydantic 请求/响应模型
 │   └── tts/                    # TTS 功能模块
 │       ├── __init__.py
@@ -41,7 +43,8 @@ workspace/app/
 | `config.py` | 读取环境变量/默认值，产出配置对象 | 标准库 |
 | `api/app.py` | FastAPI 应用组装，挂载两套路由 | fastapi |
 | `api/openai_compat.py` | OpenAI 兼容接口（`/v1/audio/speech`, `/v1/models`） | fastapi |
-| `api/custom_api.py` | 自定义接口（`/api/v1/tts/*`） | fastapi, python-multipart |
+| `api/custom_api.py` | 自定义接口（`/api/v1/tts/synthesize`、`synthesize-upload`、`models`、`engines`） | fastapi, python-multipart |
+| `api/voices.py` | 自定义声音注册/复刻（`/api/v1/tts/voices` 注册、列表、删除） | fastapi, python-multipart |
 | `api/schemas.py` | Pydantic 请求/响应模型 | pydantic |
 | `tts/engine.py` | 对外暴露的统一 TTS 接口（`TTS` 类） | loader, synthesizer |
 | `tts/loader.py` | 调用 `transformers` 实例化模型 | transformers |
@@ -51,10 +54,11 @@ workspace/app/
 ## 关键设计点
 
 1. **模型存放**：所有 TTS 模型统一落在 `models/tts/`，由 `config.py` 提供路径，`manager.py` 负责下载到此处。
-2. **加载方式**：统一使用 `transformers` 加载模型。
-3. **下载方式**：使用 `huggingface_hub`。
-4. **双协议**：OpenAI 兼容 + 自定义接口，共用 `tts/engine.py` 底层引擎。详见 `API_DESIGN.md`。
-5. **扩展性**：新增 TTS 模型只需在 `loader.py` 增加一个模型注册项，无需改动调用链。
+2. **自定义声音**：音色复刻的参考音频落在 `models/voices/`，由 `voices.py` 模块管理注册/列表/删除。
+3. **加载方式**：统一使用 `transformers` 加载模型。
+4. **下载方式**：使用 `huggingface_hub`。
+5. **双协议 + 声音复刻**：OpenAI 兼容 + 自定义接口，共用 `tts/engine.py` 底层引擎。自定义接口额外支持自定义声音注册/复刻（`api/voices.py`）。详见 `API_DESIGN.md`。
+6. **扩展性**：新增 TTS 模型只需在 `loader.py` 增加一个模型注册项，无需改动调用链。
 
 ## 依赖
 
