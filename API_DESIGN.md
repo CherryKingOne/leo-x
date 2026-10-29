@@ -105,7 +105,7 @@ name: "my_voice"                     # 自定义声音名，必填
 engine: "cosyvoice"                  # 引擎名，必填
 description: "My custom voice"       # 可选描述
 reference_audio: <file>              # 用于音色复刻的音频文件，必填
-expire_days: 30                      # 复刻有效期，可选：3 / 7 / 15 / 30 / 90 / 365 / 0（永久），默认 30
+expire_days: 7                       # 复刻有效期，可选：3 / 7 / 15 / 30 / 90 / 365 / -1（永久），默认 7
 ```
 
 **Response** (`application/json`):
@@ -129,7 +129,7 @@ expire_days: 30                      # 复刻有效期，可选：3 / 7 / 15 / 3
 | engine | string | 引擎名 |
 | description | string | 描述 |
 | audio_path | string | 参考音频本地路径 |
-| expire_days | int | 有效期（天），0 表示永久 |
+| expire_days | int | 有效期（天），-1 表示永久 |
 | expires_at | string | 到期时间（ISO 8601），永久则为 null |
 | created_at | string | 创建时间（ISO 8601） |
 
@@ -240,4 +240,4 @@ expire_days: 30                      # 复刻有效期，可选：3 / 7 / 15 / 3
 2. `voice_id`（已注册的自定义声音 id）— 使用已复刻的声音，创建一次后复用
 3. `voice`（引擎预置音色名）— 使用预置声音
 
-**有效期**：注册时指定 `expire_days`（3 / 7 / 15 / 30 / 90 / 365 / 0 永久），非永久声音到期自动删除。
+**有效期**：注册时指定 `expire_days`（3 / 7 / 15 / 30 / 90 / 365 / -1 永久），非永久声音到期自动删除。
