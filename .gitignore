@@ -36,5 +36,6 @@ coverage.xml
 Thumbs.db
 models/tts/*
 !models/tts/.gitkeep
+!models/tts/models.json
 models/voices/*
 !models/voices/.gitkeep
