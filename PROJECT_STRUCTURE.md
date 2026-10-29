@@ -10,7 +10,8 @@ workspace/app/
 ├── pyproject.toml              # uv 项目配置 + 依赖
 ├── .python-version             # 3.12
 ├── PROJECT_STRUCTURE.md        # 本文档
-├── API_DESIGN.md               # 接口协议设计
+├── API_OPENAI.md               # OpenAI 兼容接口文档
+├── API_CUSTOM.md               # 自定义接口文档
 ├── models/                     # 模型本地存放根目录（不进 git）
 │   ├── tts/                    # TTS 专用模型目录（用户指定）
 │   └── voices/                 # 自定义声音（音色复刻）目录
@@ -59,7 +60,7 @@ workspace/app/
 2. **自定义声音**：音色复刻的参考音频落在 `models/voices/{voice_id}/ref.wav`，由 `tts/voice_store.py` 管理注册（生成 voice_id）、有效期与到期自动清理，`api/voices.py` 提供 HTTP 接口。
 3. **加载方式**：统一使用 `transformers` 加载模型。
 4. **下载方式**：使用 `huggingface_hub`。
-5. **双协议 + 声音复刻**：OpenAI 兼容 + 自定义接口，共用 `tts/engine.py` 底层引擎。自定义接口额外支持自定义声音注册/复刻（`api/voices.py`）。详见 `API_DESIGN.md`。
+5. **双协议 + 声音复刻**：OpenAI 兼容（`API_OPENAI.md`）+ 自定义接口（`API_CUSTOM.md`），共用 `tts/engine.py` 底层引擎。自定义接口额外支持自定义声音注册/复刻（`api/voices.py`）。
 6. **扩展性**：新增 TTS 模型只需在 `loader.py` 增加一个模型注册项，无需改动调用链。
 
 ## 依赖
