@@ -26,10 +26,10 @@ def server(
 
 
 @cli_app.command()
-def download(model_id: str, engine: str = "auto"):
-    """通过 huggingface_hub 下载模型（带进度条）。"""
+def download(model_id: str):
+    """通过 huggingface_hub 下载模型（带进度条）。model_id 可为 display_name（如 voxcpm-2.0）。"""
     manager = ModelManager()
-    path = manager.download_model(repo_id=model_id, engine=engine)
+    path = manager.download_model(model_id=model_id)
     typer.echo(f"已下载: {path}")
 
 

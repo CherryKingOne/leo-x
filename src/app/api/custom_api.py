@@ -98,58 +98,63 @@ async def synthesize_upload(
 
 @router.get("/engines", response_model=EnginesResponse)
 async def list_engines():
-    """列出可用引擎。"""
+    """列出所有可用模型（对外统一称为 engines，均位于 models/tts/ 下）。"""
     from app.tts.manager import ModelManager
 
     manager = ModelManager()
-    infos = manager.list_models()
-    engines_map: dict[str, dict] = {}
-    for m in infos:
-        engines_map.setdefault(
-            m.engine,
-            {
-                "name": m.engine,
-                "description": f"{m.engine} TTS",
-                "voices": [],
-                "supports_voice_clone": True,
-            },
+    entries = manager.list_models()
+    engines = [
+        EngineInfo(
+            name=e.model_id,
+            description=f"{e.display_name or e.model_id} TTS",
+            voices=[],
+            supports_voice_clone=True,
         )
-    return EnginesResponse(
-        engines=[EngineInfo(**v) for v in engines_map.values()]
-    )
+        for e in entries
+    ]
+    return EnginesResponse(engines=engines)
 
 
 @router.get("/models", response_model=ModelsResponse)
 async def list_models():
-    """列出已下载模型。"""
+    """列出所有模型及其下载状态（来自 models/tts/models.json 映射表）。"""
     from app.tts.manager import ModelManager
 
     manager = ModelManager()
-    infos = manager.list_models()
+    entries = manager.list_models()
     models = [
         ModelInfo(
-            id=m.model_id,
-            engine=m.engine,
-            path=str(m.local_path),
-            size_bytes=m.size_bytes,
+            id=e.model_id,
+            display_name=e.display_name,
+            engine=e.model_id,
+            path=str(e.local_path) if e.local_path else None,
+            size_bytes=e.size_bytes,
+            downloaded=e.downloaded,
             downloaded_at=None,
         )
-        for m in infos
+        for e in entries
     ]
     return ModelsResponse(models=models)
 
 
 @router.post("/models/download")
 async def download_model(req: ModelDownloadRequest):
-    """下载模型（huggingface_hub，带进度条）。"""
+    """下载模型（huggingface_hub，带进度条）。model_id 支持 display_name（如 voxcpm-2.0）。"""
     from app.tts.manager import ModelManager
 
     manager = ModelManager()
     try:
-        path = manager.download_model(repo_id=req.model_id, engine=req.engine)
+        path = manager.download_model(model_id=req.model_id)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(exc))
-    return {"model_id": req.model_id, "engine": req.engine, "status": "downloaded", "path": str(path)}
+    entry = manager.get_mapping().get(req.model_id)
+    return {
+        "model_id": req.model_id,
+        "display_name": entry.display_name if entry else req.model_id,
+        "engine": req.model_id,
+        "status": "downloaded",
+        "path": str(path),
+    }
 
 
 @router.post("/models/clear")

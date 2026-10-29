@@ -50,9 +50,11 @@ class EnginesResponse(BaseModel):
 
 class ModelInfo(BaseModel):
     id: str
+    display_name: str | None = None
     engine: str
-    path: str
-    size_bytes: int
+    path: str | None = None
+    size_bytes: int = 0
+    downloaded: bool = False
     downloaded_at: str | None = None
 
 
@@ -62,7 +64,6 @@ class ModelsResponse(BaseModel):
 
 class ModelDownloadRequest(BaseModel):
     model_id: str
-    engine: str = "auto"
 
 
 class ModelClearRequest(BaseModel):

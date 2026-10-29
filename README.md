@@ -54,7 +54,7 @@ uv run app server --host 0.0.0.0 --port 8000
 | 命令 | 说明 | 示例 |
 |------|------|------|
 | `app server` | 启动 HTTP 服务 | `uv run app server --port 8000` |
-| `app download` | 从 huggingface_hub 下载模型（进度条） | `uv run app download tts-1 --engine cosyvoice` |
+| `app download` | 从 huggingface_hub 下载模型（进度条） | `uv run app download voxcpm-2.0` |
 | `app list-models` | 列出已下载模型 | `uv run app list-models` |
 | `app clear-model` | 清理模型缓存 | `uv run app clear-model tts-1` |
 | `app register-voice` | 注册自定义声音（音色复刻），返回 voice_id | `uv run app register-voice myvoice cosyvoice ref.wav --expire-days 30` |
@@ -83,7 +83,7 @@ curl http://localhost:8000/v1/models
 # 文本合成（URL 音色克隆）
 curl -X POST http://localhost:8000/api/v1/tts/synthesize \
   -H "Content-Type: application/json" \
-  -d '{"text":"你好","engine":"cosyvoice","reference_audio_url":"https://example.com/ref.wav","format":"wav"}' \
+  -d '{"text":"你好","engine":"voxcpm-2.0","reference_audio_url":"https://example.com/ref.wav","format":"wav"}' \
   --output output.wav
 
 # 上传参考音频合成
@@ -96,7 +96,7 @@ curl -X POST http://localhost:8000/api/v1/tts/synthesize-upload \
 # 注册自定义声音（返回 voice_id，后续直接用 id 复刻）
 curl -X POST http://localhost:8000/api/v1/tts/voices \
   -F "name=myvoice" \
-  -F "engine=cosyvoice" \
+  -F "engine=voxcpm-2.0" \
   -F "reference_audio=@ref.wav" \
   -F "expire_days=30"
 

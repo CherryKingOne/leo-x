@@ -57,7 +57,7 @@ async def list_models():
     from app.tts.manager import ModelManager
 
     manager = ModelManager()
-    infos = manager.list_models()
+    entries = manager.list_models()
     now = int(time.time())
-    data = [OpenAIModel(id=m.model_id, created=now) for m in infos]
+    data = [OpenAIModel(id=e.model_id, created=now) for e in entries]
     return OpenAIModelsResponse(data=data)
