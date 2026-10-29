@@ -10,12 +10,19 @@ workspace/app/
 ├── pyproject.toml              # uv 项目配置 + 依赖
 ├── .python-version             # 3.12
 ├── PROJECT_STRUCTURE.md        # 本文档
+├── API_DESIGN.md               # 接口协议设计
 ├── models/                     # 模型本地存放根目录（不进 git）
 │   └── tts/                    # TTS 专用模型目录（用户指定）
 ├── src/app/
 │   ├── __init__.py
 │   ├── cli.py                  # CLI 入口（typer）
 │   ├── config.py               # 配置：模型目录、设备、默认参数
+│   ├── api/                    # HTTP 接口层
+│   │   ├── __init__.py
+│   │   ├── app.py              # FastAPI 应用入口，挂载路由
+│   │   ├── openai_compat.py    # OpenAI 兼容接口 (/v1/audio/speech, /v1/models)
+│   │   ├── custom_api.py       # 自定义接口 (/api/v1/tts/*)
+│   │   └── schemas.py          # Pydantic 请求/响应模型
 │   └── tts/                    # TTS 功能模块
 │       ├── __init__.py
 │       ├── engine.py           # TTS 引擎抽象（统一调用接口）
@@ -30,8 +37,12 @@ workspace/app/
 
 | 模块 | 职责 | 依赖 |
 |------|------|------|
-| `cli.py` | 命令行入口，解析参数、调用引擎 | typer |
+| `cli.py` | 命令行入口，启动服务或单次合成 | typer |
 | `config.py` | 读取环境变量/默认值，产出配置对象 | 标准库 |
+| `api/app.py` | FastAPI 应用组装，挂载两套路由 | fastapi |
+| `api/openai_compat.py` | OpenAI 兼容接口（`/v1/audio/speech`, `/v1/models`） | fastapi |
+| `api/custom_api.py` | 自定义接口（`/api/v1/tts/*`） | fastapi, python-multipart |
+| `api/schemas.py` | Pydantic 请求/响应模型 | pydantic |
 | `tts/engine.py` | 对外暴露的统一 TTS 接口（`TTS` 类） | loader, synthesizer |
 | `tts/loader.py` | 调用 `transformers` 实例化模型 | transformers |
 | `tts/manager.py` | 调用 `huggingface_hub` 下载/列出/清理模型缓存 | huggingface_hub |
@@ -40,9 +51,10 @@ workspace/app/
 ## 关键设计点
 
 1. **模型存放**：所有 TTS 模型统一落在 `models/tts/`，由 `config.py` 提供路径，`manager.py` 负责下载到此处。
-2. **加载方式**：统一使用 `transformers` 加载模型（用户指定）。
-3. **下载方式**：使用 `huggingface_hub`（用户指定）。
-4. **扩展性**：新增 TTS 模型只需在 `loader.py` 增加一个模型注册项，无需改动调用链。
+2. **加载方式**：统一使用 `transformers` 加载模型。
+3. **下载方式**：使用 `huggingface_hub`。
+4. **双协议**：OpenAI 兼容 + 自定义接口，共用 `tts/engine.py` 底层引擎。详见 `API_DESIGN.md`。
+5. **扩展性**：新增 TTS 模型只需在 `loader.py` 增加一个模型注册项，无需改动调用链。
 
 ## 依赖
 
@@ -50,4 +62,7 @@ workspace/app/
 - huggingface_hub（最新）
 - transformers
 - typer（CLI）
+- fastapi + python-multipart（HTTP 接口）
+- pydantic（数据校验）
+- httpx（URL 音色克隆）
 - numpy（音频处理）
